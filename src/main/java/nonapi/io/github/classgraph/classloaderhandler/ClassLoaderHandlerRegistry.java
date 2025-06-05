@@ -57,6 +57,7 @@ public class ClassLoaderHandlerRegistry {
                     new ClassLoaderHandlerRegistryEntry(WebsphereTraditionalClassLoaderHandler.class),
                     new ClassLoaderHandlerRegistryEntry(OSGiDefaultClassLoaderHandler.class),
                     new ClassLoaderHandlerRegistryEntry(SpringBootRestartClassLoaderHandler.class),
+                    new ClassLoaderHandlerRegistryEntry(BotCommandsRestartClassLoaderHandler.class),
                     new ClassLoaderHandlerRegistryEntry(TomcatWebappClassLoaderBaseHandler.class),
                     new ClassLoaderHandlerRegistryEntry(CxfContainerClassLoaderHandler.class),
                     new ClassLoaderHandlerRegistryEntry(PlexusClassWorldsClassRealmClassLoaderHandler.class),
