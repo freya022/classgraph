@@ -83,7 +83,7 @@ public class ResourceListTest {
             final var allResources = scanResult.getAllResources();
             assertThat(allResources.getPaths()).containsExactlyInAnyOrderElementsOf(FILE_NAMES);
 
-            final var copy = new ResourceList(allResources);
+            final var copy = ResourceListImpl.wrap(allResources);
             assertThat(copy).containsExactlyElementsOf(allResources);
 
             // Like every other list the API hands out, a list built this way is unmodifiable
@@ -234,7 +234,7 @@ public class ResourceListTest {
             final var resource = scanResult.getAllResources().get("c.txt").get(0);
             try (var heldStream = resource.open()) {
                 assertThatIllegalStateException()
-                        .isThrownBy(() -> helper.call.run(new ResourceList(List.of(resource))))
+                        .isThrownBy(() -> helper.call.run(ResourceListImpl.wrap(List.of(resource))))
                         .withMessageStartingWith("Resource is already open");
                 // The caller's stream is still open, and the resource still counts as open
                 assertThat(new String(heldStream.readAllBytes(), StandardCharsets.UTF_8))
@@ -260,7 +260,7 @@ public class ResourceListTest {
             final var resource = scanResult.getAllResources().get("c.txt").get(0);
             try (var heldBuffer = resource.read()) {
                 assertThatIllegalStateException()
-                        .isThrownBy(() -> helper.call.run(new ResourceList(List.of(resource))))
+                        .isThrownBy(() -> helper.call.run(ResourceListImpl.wrap(List.of(resource))))
                         .withMessageStartingWith("Resource is already open");
                 // The caller's buffer has not been released, and the resource still counts as open
                 final var byteBuffer = heldBuffer.getByteBuffer();

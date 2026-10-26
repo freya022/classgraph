@@ -33,20 +33,11 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.TreeMap;
 import java.util.function.Predicate;
 
 import org.jetbrains.annotations.Unmodifiable;
-
-import io.github.classgraph.base.internal.path.PathSyntax;
-import io.github.classgraph.base.internal.utils.Assert;
 
 /**
  * An {@link AutoCloseable} list of {@link AutoCloseable} {@link Resource} objects. Closing the list closes every
@@ -57,56 +48,25 @@ import io.github.classgraph.base.internal.utils.Assert;
  * every method that would add, remove, replace or sort an element throws {@link UnsupportedOperationException}.
  * Copy the list if you need a modifiable version of it, e.g. {@code new ArrayList<>(list)}.
  */
-public final class ResourceList extends UnmodifiableList<Resource> implements AutoCloseable {
-    /** An unmodifiable empty {@link ResourceList}. */
-    static final ResourceList EMPTY_LIST = new ResourceList(List.of());
-
+public sealed interface ResourceList extends UnmodifiableListIntf<Resource>, RandomAccess, AutoCloseable permits ResourceListImpl {
     /**
      * Return an unmodifiable empty {@link ResourceList}.
      *
      * @return the unmodifiable empty {@link ResourceList}.
      */
-    public static ResourceList emptyList() {
-        return EMPTY_LIST;
+    static ResourceList emptyList() {
+        return ResourceListImpl.EMPTY_LIST;
     }
 
     /**
-     * Create a new unmodifiable {@link ResourceList} from a completed collection of {@link Resource} objects. The
-     * collection is copied.
+     * Create a new unmodifiable {@link ResourceListImpl} from a completed collection of {@link Resource} objects.
+     * The collection is copied.
      *
      * @param resourceCollection
      *            the collection of {@link Resource} objects.
      */
-    public ResourceList(final Collection<Resource> resourceCollection) {
-        // Copy the caller's collection, since the caller may modify it after this constructor returns
-        this(new ArrayList<>(Objects.requireNonNull(resourceCollection, "resourceCollection must not be null")));
-    }
-
-    /**
-     * Constructor. This list claims the given list rather than copying it, so the caller must not use the list
-     * again after handing it over. Resources are listed in the order they were found on the classpath and module
-     * path, so unlike an {@link InfoList}, a {@link ResourceList} is never sorted.
-     *
-     * @param resources
-     *            the elements of the list
-     */
-    ResourceList(final List<Resource> resources) {
-        super(resources);
-    }
-
-    /**
-     * Normalize a resource path given to a lookup method, so that it can be compared with
-     * {@link Resource#getPath()}: any leading or trailing '/' is removed, empty and "." segments are removed, and
-     * each ".." segment removes the segment before it, without going above the package root. A '!' is an ordinary
-     * character, and the filesystem is not read. Every method that looks up a resource by path calls this, so that
-     * they all accept the same spellings of a path.
-     *
-     * @param resourcePath
-     *            the path to normalize.
-     * @return the normalized path.
-     */
-    static String normalizeResourcePath(final String resourcePath) {
-        return PathSyntax.sanitizeRelativePath(resourcePath, /* removeFinalSlash = */ true);
+    static ResourceList of(Collection<Resource> resourceCollection) {
+        return new ResourceListImpl(new ArrayList<>(Objects.requireNonNull(resourceCollection, "resourceCollection must not be null")));
     }
 
     /**
@@ -126,30 +86,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *         returns a {@link ResourceList} rather than a single {@link Resource}.) Returns the empty list if no
      *         resource is found with a matching path.
      */
-    public ResourceList get(final String resourcePath) {
-        Assert.notNull(resourcePath, "resourcePath");
-        return getNormalizedPath(normalizeResourcePath(resourcePath));
-    }
-
-    /**
-     * Returns a list of all resources whose path is equal to a path that has already been normalized by
-     * {@link #normalizeResourcePath(String)}, without normalizing it again.
-     *
-     * @param path
-     *            the normalized path.
-     * @return the resources in this list that have the given path, or the empty list if there are none.
-     */
-    ResourceList getNormalizedPath(final String path) {
-        final List<Resource> matchingResources = new ArrayList<>(2);
-        for (final Resource res : this) {
-            if (res.getPath().equals(path)) {
-                matchingResources.add(res);
-            }
-        }
-        return matchingResources.isEmpty() ? EMPTY_LIST : new ResourceList(matchingResources);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
+    ResourceList get(String resourcePath);
 
     /**
      * Get the paths of all resources in this list relative to the package root.
@@ -157,13 +94,8 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @return The paths of all resources in this list relative to the package root, by calling
      *         {@link Resource#getPath()} for each item in the list.
      */
-    public @Unmodifiable List<String> getPaths() {
-        final List<String> resourcePaths = new ArrayList<>(this.size());
-        for (final Resource resource : this) {
-            resourcePaths.add(resource.getPath());
-        }
-        return Collections.unmodifiableList(resourcePaths);
-    }
+    @Unmodifiable
+    List<String> getPaths();
 
     /**
      * Get the paths of all resources in this list relative to the jarfile or directory that contains them.
@@ -171,13 +103,8 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @return The paths of all resources in this list relative to the jarfile or directory that contains them, by
      *         calling {@link Resource#getPathRelativeToContainer()} for each item in the list.
      */
-    public @Unmodifiable List<String> getPathsRelativeToContainer() {
-        final List<String> resourcePaths = new ArrayList<>(this.size());
-        for (final Resource resource : this) {
-            resourcePaths.add(resource.getPathRelativeToContainer());
-        }
-        return Collections.unmodifiableList(resourcePaths);
-    }
+    @Unmodifiable
+    List<String> getPathsRelativeToContainer();
 
     /**
      * Get the URLs of all resources in this list, by calling {@link Resource#getURL()} for each item in the list.
@@ -186,13 +113,8 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @throws IllegalStateException
      *             if any resource's URI could not be converted to a {@link URL}.
      */
-    public @Unmodifiable List<URL> getURLs() {
-        final List<URL> resourceURLs = new ArrayList<>(this.size());
-        for (final Resource resource : this) {
-            resourceURLs.add(resource.getURL());
-        }
-        return Collections.unmodifiableList(resourceURLs);
-    }
+    @Unmodifiable
+    List<URL> getURLs();
 
     /**
      * Get the URIs of all resources in this list, by calling {@link Resource#getURI()} for each item in the list.
@@ -202,28 +124,15 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *             if any resource's {@link URI} could not be formed, for example for a resource obtained from a
      *             module that does not report where its resources are.
      */
-    public @Unmodifiable List<URI> getURIs() {
-        final List<URI> resourceURIs = new ArrayList<>(this.size());
-        for (final Resource resource : this) {
-            resourceURIs.add(resource.getURI());
-        }
-        return Collections.unmodifiableList(resourceURIs);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Returns true if a Resource is a classfile. */
-    private static final Predicate<Resource> CLASSFILE_FILTER = resource -> ClassNames
-            .isClassfilePath(resource.getPath());
+    @Unmodifiable
+    List<URI> getURIs();
 
     /**
      * Return a new {@link ResourceList} consisting of only the resources with the filename extension ".class".
      *
      * @return A new {@link ResourceList} consisting of only the resources with the filename extension ".class".
      */
-    public ResourceList classFilesOnly() {
-        return filter(CLASSFILE_FILTER);
-    }
+    ResourceList classFilesOnly();
 
     /**
      * Return a new {@link ResourceList} consisting of non-classfile resources only.
@@ -231,11 +140,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @return A new {@link ResourceList} consisting of only the resources that do not have the filename extension
      *         ".class".
      */
-    public ResourceList nonClassFilesOnly() {
-        return filter(CLASSFILE_FILTER.negate());
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
+    ResourceList nonClassFilesOnly();
 
     /**
      * Return this {@link ResourceList} as a map from resource path (obtained from {@link Resource#getPath()}) to a
@@ -248,17 +153,8 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *         no empty, "." or ".." segments, and {@link Map#get(Object)} does not normalize the path it is given.
      *         To look up a path written in another form, use {@link #get(String)}.
      */
-    public @Unmodifiable Map<String, ResourceList> asMap() {
-        final Map<String, List<Resource>> pathToResources = new TreeMap<>();
-        for (final Resource resource : this) {
-            pathToResources.computeIfAbsent(resource.getPath(), _ -> new ArrayList<>(1)).add(resource);
-        }
-        final Map<String, ResourceList> pathToResourceList = new TreeMap<>();
-        for (final Map.Entry<String, List<Resource>> ent : pathToResources.entrySet()) {
-            pathToResourceList.put(ent.getKey(), new ResourceList(ent.getValue()));
-        }
-        return Collections.unmodifiableMap(pathToResourceList);
-    }
+    @Unmodifiable
+    Map<String, ResourceList> asMap();
 
     /**
      * Find duplicate resource paths within this {@link ResourceList}.
@@ -269,18 +165,8 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *         and the value is a {@link ResourceList} of at least two unique {@link Resource} objects that have
      *         that path. The entries are unmodifiable.
      */
-    public @Unmodifiable List<@Unmodifiable Entry<String, ResourceList>> findDuplicatePaths() {
-        final List<Entry<String, ResourceList>> duplicatePaths = new ArrayList<>();
-        // asMap() is sorted by path, and its entries are unmodifiable
-        for (final Entry<String, ResourceList> pathAndResourceList : asMap().entrySet()) {
-            if (pathAndResourceList.getValue().size() > 1) {
-                duplicatePaths.add(pathAndResourceList);
-            }
-        }
-        return Collections.unmodifiableList(duplicatePaths);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
+    @Unmodifiable
+    List<@Unmodifiable Entry<String, ResourceList>> findDuplicatePaths();
 
     /**
      * Find the subset of the {@link Resource} objects in this list for which the given filter predicate is true.
@@ -290,24 +176,13 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *            copied to the returned list.
      * @return The subset of the {@link Resource} objects in this list for which the given filter predicate is true.
      */
-    public ResourceList filter(final Predicate<Resource> filter) {
-        Assert.notNull(filter, "filter");
-        final List<Resource> resourcesFiltered = new ArrayList<>();
-        for (final Resource resource : this) {
-            if (filter.test(resource)) {
-                resourcesFiltered.add(resource);
-            }
-        }
-        return new ResourceList(resourcesFiltered);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
+    ResourceList filter(Predicate<Resource> filter);
 
     /**
      * A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a byte array.
      */
     @FunctionalInterface
-    public interface ByteArrayConsumer {
+    interface ByteArrayConsumer {
         /**
          * Consume the complete content of a {@link Resource} as a byte array.
          *
@@ -336,16 +211,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @throws IOException
      *             if loading any of the resources, or the consumer itself, throws {@link IOException}.
      */
-    public ResourceList forEachByteArray(final ByteArrayConsumer byteArrayConsumer) throws IOException {
-        Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
-        for (final Resource resource : this) {
-            // load() has closed the resource by the time it returns, so there is nothing left here to close.
-            // Closing the resource anyway would close it for whoever has it open, if load() threw because the
-            // resource was already open, or if the consumer reopened it.
-            byteArrayConsumer.accept(resource, resource.load());
-        }
-        return this;
-    }
+    ResourceList forEachByteArray(ByteArrayConsumer byteArrayConsumer) throws IOException;
 
     /**
      * The same as {@link #forEachByteArray(ByteArrayConsumer)}, but if loading a resource, or the consumer itself,
@@ -355,25 +221,13 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *            The {@link ByteArrayConsumer}.
      * @return this (for method chaining).
      */
-    public ResourceList forEachByteArrayIgnoringIOException(final ByteArrayConsumer byteArrayConsumer) {
-        Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
-        for (final Resource resource : this) {
-            try {
-                byteArrayConsumer.accept(resource, resource.load());
-            } catch (final IOException _) {
-                // Ignore
-            }
-        }
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
+    ResourceList forEachByteArrayIgnoringIOException(ByteArrayConsumer byteArrayConsumer);
 
     /**
      * A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as an {@link InputStream}.
      */
     @FunctionalInterface
-    public interface InputStreamConsumer {
+    interface InputStreamConsumer {
         /**
          * Consume a {@link Resource} as an {@link InputStream}.
          *
@@ -402,18 +256,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @throws IOException
      *             if opening any of the resources, or the consumer itself, throws {@link IOException}.
      */
-    public ResourceList forEachInputStream(final InputStreamConsumer inputStreamConsumer) throws IOException {
-        Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
-        for (final Resource resource : this) {
-            // Open the resource before the try block, so that it is only closed if this method opened it. If open()
-            // throws, the resource is either open for someone else, or open() has left it closed.
-            final var inputStream = resource.open();
-            try (resource) {
-                inputStreamConsumer.accept(resource, inputStream);
-            }
-        }
-        return this;
-    }
+    ResourceList forEachInputStream(InputStreamConsumer inputStreamConsumer) throws IOException;
 
     /**
      * The same as {@link #forEachInputStream(InputStreamConsumer)}, but if opening a resource, or the consumer
@@ -423,28 +266,13 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *            The {@link InputStreamConsumer}.
      * @return this (for method chaining).
      */
-    public ResourceList forEachInputStreamIgnoringIOException(final InputStreamConsumer inputStreamConsumer) {
-        Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
-        for (final Resource resource : this) {
-            try {
-                final var inputStream = resource.open();
-                try (resource) {
-                    inputStreamConsumer.accept(resource, inputStream);
-                }
-            } catch (final IOException _) {
-                // Ignore
-            }
-        }
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
+    ResourceList forEachInputStreamIgnoringIOException(InputStreamConsumer inputStreamConsumer);
 
     /**
      * A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a {@link ByteBuffer}.
      */
     @FunctionalInterface
-    public interface ByteBufferConsumer {
+    interface ByteBufferConsumer {
         /**
          * Consume a {@link Resource} as a {@link ByteBuffer}.
          *
@@ -473,20 +301,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @throws IOException
      *             if reading any of the resources, or the consumer itself, throws {@link IOException}.
      */
-    public ResourceList forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer) throws IOException {
-        Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
-        for (final Resource resource : this) {
-            // Read the resource before the try block, so that it is only closed if this method opened it. If read()
-            // throws, the resource is either open for someone else, or read() has left it closed.
-            final var closeableByteBuffer = resource.read();
-            try (resource) {
-                // The buffer is only valid until the resource is closed, which is why the consumer is called with
-                // the plain ByteBuffer rather than something it could close early
-                byteBufferConsumer.accept(resource, Objects.requireNonNull(closeableByteBuffer.getByteBuffer()));
-            }
-        }
-        return this;
-    }
+    ResourceList forEachByteBuffer(ByteBufferConsumer byteBufferConsumer) throws IOException;
 
     /**
      * The same as {@link #forEachByteBuffer(ByteBufferConsumer)}, but if reading a resource, or the consumer
@@ -496,29 +311,9 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *            The {@link ByteBufferConsumer}.
      * @return this (for method chaining).
      */
-    public ResourceList forEachByteBufferIgnoringIOException(final ByteBufferConsumer byteBufferConsumer) {
-        Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
-        for (final Resource resource : this) {
-            try {
-                final var closeableByteBuffer = resource.read();
-                try (resource) {
-                    byteBufferConsumer.accept(resource,
-                            Objects.requireNonNull(closeableByteBuffer.getByteBuffer()));
-                }
-            } catch (final IOException _) {
-                // Ignore
-            }
-        }
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
+    ResourceList forEachByteBufferIgnoringIOException(ByteBufferConsumer byteBufferConsumer);
 
     /** Close all the {@link Resource} objects in this {@link ResourceList}. */
     @Override
-    public void close() {
-        for (final Resource resource : this) {
-            resource.close();
-        }
-    }
+    void close();
 }

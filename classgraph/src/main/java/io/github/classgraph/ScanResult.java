@@ -694,7 +694,7 @@ public final class ScanResult implements AutoCloseable {
                 for (final ClasspathElement classpathElt : classpathOrder()) {
                     acceptedResourcesList.addAll(classpathElt.acceptedResources);
                 }
-                allAcceptedResourcesCached = allAcceptedResources = new ResourceList(acceptedResourcesList);
+                allAcceptedResourcesCached = allAcceptedResources = ResourceListImpl.wrap(acceptedResourcesList);
             }
             return allAcceptedResources;
         }
@@ -741,14 +741,14 @@ public final class ScanResult implements AutoCloseable {
     public ResourceList getResourcesWithPath(final String resourcePath) {
         checkNotClosed();
         Assert.notNull(resourcePath, "resourcePath");
-        final var path = ResourceList.normalizeResourcePath(resourcePath);
+        final var path = ResourceListImpl.normalizeResourcePath(resourcePath);
         if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
             // If numerous calls are made, build and cache a single sorted map (a TreeMap), for O(log n) lookups
             final var matchingResources = getAllResourcesAsMap().get(path);
-            return matchingResources == null ? ResourceList.EMPTY_LIST : matchingResources;
+            return matchingResources == null ? ResourceListImpl.EMPTY_LIST : matchingResources;
         }
         // If just a few calls are made, directly search for resource with the requested path
-        return getAllResources().getNormalizedPath(path);
+        return ((ResourceListImpl) getAllResources()).getNormalizedPath(path);
     }
 
     /**
@@ -782,11 +782,11 @@ public final class ScanResult implements AutoCloseable {
     public ResourceList getResourcesWithPathIgnoringAccept(final String resourcePath) {
         checkNotClosed();
         Assert.notNull(resourcePath, "resourcePath");
-        final var path = ResourceList.normalizeResourcePath(resourcePath);
+        final var path = ResourceListImpl.normalizeResourcePath(resourcePath);
         // ClasspathElement#getResource(String) ignores the accept and reject criteria, since it is also how the
         // class graph is extended upwards through classes that were not accepted, so reject is applied here
         if (scanSpec.resourcePathIsRejected(path)) {
-            return ResourceList.EMPTY_LIST;
+            return ResourceListImpl.EMPTY_LIST;
         }
         final List<Resource> matchingResources = new ArrayList<>();
         for (final ClasspathElement classpathElt : classpathOrder()) {
@@ -795,7 +795,7 @@ public final class ScanResult implements AutoCloseable {
                 matchingResources.add(matchingResource);
             }
         }
-        return new ResourceList(matchingResources);
+        return ResourceListImpl.wrap(matchingResources);
     }
 
     /**
@@ -812,7 +812,7 @@ public final class ScanResult implements AutoCloseable {
         Assert.notNull(leafName, "leafName");
         final var allAcceptedResources = getAllResources();
         if (allAcceptedResources.isEmpty()) {
-            return ResourceList.EMPTY_LIST;
+            return ResourceListImpl.EMPTY_LIST;
         } else {
             final List<Resource> filteredResources = new ArrayList<>();
             for (final Resource classpathResource : allAcceptedResources) {
@@ -823,7 +823,7 @@ public final class ScanResult implements AutoCloseable {
                 }
             }
             // Filtering preserves classpath order, which is the order of a ResourceList
-            return new ResourceList(filteredResources);
+            return ResourceListImpl.wrap(filteredResources);
         }
     }
 
@@ -841,7 +841,7 @@ public final class ScanResult implements AutoCloseable {
         Assert.notNull(extension, "extension");
         final var allAcceptedResources = getAllResources();
         if (allAcceptedResources.isEmpty()) {
-            return ResourceList.EMPTY_LIST;
+            return ResourceListImpl.EMPTY_LIST;
         } else {
             var bareExtension = extension;
             while (bareExtension.startsWith(".")) {
@@ -858,7 +858,7 @@ public final class ScanResult implements AutoCloseable {
                 }
             }
             // Filtering preserves classpath order, which is the order of a ResourceList
-            return new ResourceList(filteredResources);
+            return ResourceListImpl.wrap(filteredResources);
         }
     }
 
@@ -877,7 +877,7 @@ public final class ScanResult implements AutoCloseable {
         Assert.notNull(pattern, "pattern");
         final var allAcceptedResources = getAllResources();
         if (allAcceptedResources.isEmpty()) {
-            return ResourceList.EMPTY_LIST;
+            return ResourceListImpl.EMPTY_LIST;
         } else {
             final List<Resource> filteredResources = new ArrayList<>();
             for (final Resource classpathResource : allAcceptedResources) {
@@ -887,7 +887,7 @@ public final class ScanResult implements AutoCloseable {
                 }
             }
             // Filtering preserves classpath order, which is the order of a ResourceList
-            return new ResourceList(filteredResources);
+            return ResourceListImpl.wrap(filteredResources);
         }
     }
 
