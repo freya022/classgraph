@@ -33,5 +33,10 @@
 			<artifactId>classgraph</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<!-- This module references inherited classes from the (full) classgraph module -->
+		<dependency>
+			<groupId>org.jetbrains.kotlin</groupId>
+			<artifactId>kotlin-stdlib</artifactId>
+		</dependency>
 	</dependencies>
 </project>

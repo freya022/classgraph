@@ -28,7 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.util.AbstractList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -42,18 +41,10 @@ import java.util.function.UnaryOperator;
 /**
  * The unmodifiable list that the lists returned by the ClassGraph API are built on.
  *
- * <p>
- * {@link AbstractList} supplies most of the unmodifiability: the methods that add, remove or replace a single
- * element are left unimplemented by it, so they throw {@link UnsupportedOperationException}. The bulk methods that
- * {@link java.util.AbstractCollection} and {@link List} build on top of those, however, only reach them if there is
- * something to change, so on an empty list, or with an argument that would not change the list, they would
- * otherwise silently succeed. They are therefore overridden here to be rejected unconditionally, which is also what
- * the unmodifiable views returned by {@link java.util.Collections} do.
- *
  * @param <T>
  *            the element type
  */
-abstract class UnmodifiableList<T> extends AbstractList<T> implements RandomAccess {
+abstract class UnmodifiableList</* Non-null */ T> implements ReadOnlyList<T>, RandomAccess {
     /** The elements of this list, as an unmodifiable view. */
     private final List<T> elements;
 
@@ -76,21 +67,58 @@ abstract class UnmodifiableList<T> extends AbstractList<T> implements RandomAcce
         this.elements = Collections.unmodifiableList(elements);
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+    // Delegation to the read-only list
+
     @Override
     public T get(final int index) {
         return elements.get(index);
     }
 
     @Override
+    public int indexOf(Object o) {
+        return elements.indexOf(o);
+    }
+
+    @Override
+    public int lastIndexOf(Object o) {
+        return elements.lastIndexOf(o);
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return elements.isEmpty();
+    }
+
+    @Override
+    public boolean contains(Object o) {
+        return elements.contains(o);
+    }
+
+    @Override
+    public Object[] toArray() {
+        return elements.toArray();
+    }
+
+    @Override
+    public <R> R[] toArray(R[] a) {
+        return elements.toArray(a);
+    }
+
+    @Override
+    public boolean containsAll(Collection<?> c) {
+        return elements.containsAll(c);
+    }
+
+    @Override
+    public ListIterator<T> listIterator() {
+        return elements.listIterator();
+    }
+
+    @Override
     public int size() {
         return elements.size();
     }
-
-    // -------------------------------------------------------------------------------------------------------------
-    // Views of this list, which have to reject modification too. These are delegated to the unmodifiable view of
-    // the elements, rather than inherited from AbstractList, because AbstractList's iterators reject modification
-    // only once they have an element to modify: listIterator(i).set(x) throws IllegalStateException rather than
-    // UnsupportedOperationException if next() has not been called yet.
 
     @Override
     public Iterator<T> iterator() {
@@ -105,6 +133,29 @@ abstract class UnmodifiableList<T> extends AbstractList<T> implements RandomAcce
     @Override
     public List<T> subList(final int fromIndex, final int toIndex) {
         return elements.subList(fromIndex, toIndex);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // Mutators, has to be rejected
+
+    @Override
+    public boolean add(T t) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void add(int index, T element) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public T set(int index, T element) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public T remove(int index) {
+        throw new UnsupportedOperationException();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -153,5 +204,24 @@ abstract class UnmodifiableList<T> extends AbstractList<T> implements RandomAcce
     @Override
     public void clear() {
         throw new UnsupportedOperationException();
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // equals / hashCode / toString
+
+    @Override
+    public boolean equals(Object o) {
+        // Make sure this instance also matches against the object, as the underlying collection isn't aware of it
+        return o == this || (o instanceof List<?> && elements.equals(o));
+    }
+
+    @Override
+    public int hashCode() {
+        return elements.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return elements.toString();
     }
 }

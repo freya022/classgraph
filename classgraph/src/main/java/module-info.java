@@ -57,6 +57,9 @@ module io.github.classgraph {
     // A downstream module that depends on JSpecify itself still sees the annotations.
     requires static org.jspecify;
 
+    // Kotlin stdlib, for the same reason
+    requires static kotlin.stdlib;
+
     // JetBrains @Unmodifiable annotations, for the same reason
     requires static org.jetbrains.annotations;
 }
